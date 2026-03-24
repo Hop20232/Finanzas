@@ -1,12 +1,17 @@
 import { APP_KEY, DEFAULT_STATE } from './finanzas-helpers.js?v=2026.03.24-1';
 
+function cloneState(value) {
+  if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(APP_KEY);
-    if (!raw) return structuredClone(DEFAULT_STATE);
+    if (!raw) return cloneState(DEFAULT_STATE);
     const saved = JSON.parse(raw);
     return {
-      ...structuredClone(DEFAULT_STATE),
+      ...cloneState(DEFAULT_STATE),
       ...saved,
       names: { ...DEFAULT_STATE.names, ...(saved.names || {}) },
       currencies: { ...DEFAULT_STATE.currencies, ...(saved.currencies || {}) },
@@ -18,7 +23,7 @@ export function loadState() {
       },
     };
   } catch {
-    return structuredClone(DEFAULT_STATE);
+    return cloneState(DEFAULT_STATE);
   }
 }
 
