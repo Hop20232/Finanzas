@@ -128,6 +128,11 @@
   }
   .header-actions button:hover { background: rgba(255,255,255,0.22); }
 
+  .changelog-version {
+    background: rgba(255,255,255,0.16);
+    font-weight: 600;
+  }
+
   #app-content {
     max-width: 1280px;
     margin: 0 auto;
