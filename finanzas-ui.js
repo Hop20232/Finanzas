@@ -1,5 +1,5 @@
-import { exportJSON, loadState, saveState } from './finanzas-db.js?v=2026.03.24-1';
-import { APP_BUILD_VERSION, DEFAULT_API_URL, DEFAULT_CATEGORIES, escHtml, fmtARS, normKey, uid } from './finanzas-helpers.js?v=2026.03.24-1';
+import { exportJSON, loadState, saveState } from './finanzas-db.js?v=2026.03.24-2';
+import { APP_BUILD_VERSION, APP_LAST_UPDATE_LABEL, DEFAULT_API_URL, DEFAULT_CATEGORIES, escHtml, fmtARS, normKey, uid } from './finanzas-helpers.js?v=2026.03.24-2';
 
 let state = loadState();
 let categoryOpenState = {};
@@ -29,6 +29,7 @@ function buildLayout() {
     </nav>
     <div class="header-actions">
       <span class="build-version" title="Versión desplegada">build ${APP_BUILD_VERSION}</span>
+      <span class="build-version changelog-version" title="Fecha de deploy visible en UI">Última actualización: ${APP_LAST_UPDATE_LABEL}</span>
       <button onclick="triggerExport()">⬇️ Exportar</button>
       <button onclick="document.getElementById('import-file').click()">⬆️ Importar</button>
       <input type="file" id="import-file" accept=".json" style="display:none" />
