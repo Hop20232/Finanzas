@@ -1,4 +1,4 @@
-import { APP_KEY, DEFAULT_STATE } from './finanzas-helpers.js';
+import { APP_KEY, DEFAULT_STATE } from './finanzas-helpers.js?v=2026.03.24-1';
 
 export function loadState() {
   try {

@@ -1,5 +1,6 @@
 export const APP_KEY = 'finanzasFamiliares_v5';
 export const DEFAULT_API_URL = 'https://api.exchangerate-api.com/v4/latest/ARS';
+export const APP_BUILD_VERSION = '2026.03.24-1';
 
 export const DEFAULT_STATE = {
   names: { p1: 'Persona 1', p2: 'Persona 2' },
