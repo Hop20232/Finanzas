@@ -191,8 +191,7 @@ export function renderData(root, state, handlers) {
       </tr>
     `,
     )
-    .join("
-");
+    .join("\n");
 
   root.querySelectorAll("button[data-id]").forEach((btn) => {
     btn.onclick = () => handlers.onDeleteGasto(btn.dataset.id);
