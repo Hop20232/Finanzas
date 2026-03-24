@@ -107,6 +107,16 @@
     gap: 0.4rem;
     flex-wrap: wrap;
   }
+  .build-version {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    letter-spacing: 0.2px;
+    opacity: 0.9;
+  }
   .header-actions button {
     background: rgba(255,255,255,0.12);
     border: 1px solid rgba(255,255,255,0.25);

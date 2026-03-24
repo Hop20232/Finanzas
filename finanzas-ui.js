@@ -1,5 +1,5 @@
-import { exportJSON, loadState, saveState } from './finanzas-db.js';
-import { DEFAULT_API_URL, DEFAULT_CATEGORIES, escHtml, fmtARS, normKey, uid } from './finanzas-helpers.js';
+import { exportJSON, loadState, saveState } from './finanzas-db.js?v=2026.03.24-1';
+import { APP_BUILD_VERSION, DEFAULT_API_URL, DEFAULT_CATEGORIES, escHtml, fmtARS, normKey, uid } from './finanzas-helpers.js?v=2026.03.24-1';
 
 let state = loadState();
 let categoryOpenState = {};
@@ -28,6 +28,7 @@ function buildLayout() {
       <button id="tab-dash" onclick="switchView('dashboard')">📊 Dashboards</button>
     </nav>
     <div class="header-actions">
+      <span class="build-version" title="Versión desplegada">build ${APP_BUILD_VERSION}</span>
       <button onclick="triggerExport()">⬇️ Exportar</button>
       <button onclick="document.getElementById('import-file').click()">⬆️ Importar</button>
       <input type="file" id="import-file" accept=".json" style="display:none" />
