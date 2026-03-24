@@ -1,46 +1,42 @@
-import { DEFAULT_DB, migrateDb } from "./finanzas-helpers.js";
+import { APP_KEY, DEFAULT_STATE } from './finanzas-helpers.js';
 
-const LS_KEY = "finanzas-familiares-db";
-
-export function loadDb() {
-  const raw = localStorage.getItem(LS_KEY);
-  if (!raw) return { ...DEFAULT_DB };
+export function loadState() {
   try {
-    return migrateDb(JSON.parse(raw));
+    const raw = localStorage.getItem(APP_KEY);
+    if (!raw) return structuredClone(DEFAULT_STATE);
+    const saved = JSON.parse(raw);
+    return {
+      ...structuredClone(DEFAULT_STATE),
+      ...saved,
+      names: { ...DEFAULT_STATE.names, ...(saved.names || {}) },
+      currencies: { ...DEFAULT_STATE.currencies, ...(saved.currencies || {}) },
+      auth: {
+        ...DEFAULT_STATE.auth,
+        ...(saved.auth || {}),
+        admin: { ...DEFAULT_STATE.auth.admin, ...(saved.auth?.admin || {}) },
+        users: saved.auth?.users || {},
+      },
+    };
   } catch {
-    return { ...DEFAULT_DB };
+    return structuredClone(DEFAULT_STATE);
   }
 }
 
-export function saveDb(db) {
-  const migrated = migrateDb(db);
-  localStorage.setItem(LS_KEY, JSON.stringify(migrated));
-  return migrated;
+export function saveState(state) {
+  localStorage.setItem(APP_KEY, JSON.stringify(state));
 }
 
-export function resetDb() {
-  localStorage.removeItem(LS_KEY);
-  return { ...DEFAULT_DB };
-}
-
-export async function importDbFromFile(file) {
-  const text = await file.text();
-  const parsed = JSON.parse(text);
-  return saveDb(parsed);
-}
-
-export function exportDbToFile(db) {
-  const migrated = migrateDb(db);
-  const blob = new Blob([JSON.stringify(migrated, null, 2)], {
-    type: "application/json",
-  });
-
+export function exportJSON(state) {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = url;
-  a.download = "gastos.json";
+  a.download = `finanzas_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
-
-  return migrated;
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 1000);
 }
