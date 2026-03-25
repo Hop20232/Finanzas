@@ -1,220 +1,334 @@
-const AUTH_KEY = 'finanzas_auth_v2';
-const AUTH_SESSION_KEY = 'finanzas_auth_session_v2';
-const PBKDF2_ITERATIONS = 310000;
+const AUTH_SESSION_KEY = 'finanzas_google_auth_session_v1';
+const AUTH_USER_KEY = 'finanzas_google_user_v1';
+const USER_WORKSPACES_PREFIX = 'finanzas_user_workspaces_v1::';
+const WORKSPACE_ACCESS_PREFIX = 'finanzas_workspace_access_v1::';
+const INVITE_VERSION = 1;
+const GOOGLE_CLIENT_ID = window.GOOGLE_CLIENT_ID || 'REEMPLAZAR_CON_GOOGLE_CLIENT_ID';
 
-let authMode = 'login';
-let activeCryptoKey = null;
-
-function getStoredAuth() {
-  try {
-    return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
-  } catch (e) {
-    return null;
-  }
-}
+let currentAuthUser = null;
+let activeWorkspaceId = null;
 
 function setAppLocked(locked) {
   document.body.classList.toggle('app-locked', locked);
 }
 
-function clearAuthFields() {
-  const pass = document.getElementById('auth-password');
-  const confirm = document.getElementById('auth-confirm');
-  const err = document.getElementById('auth-error');
-  if (pass) pass.value = '';
-  if (confirm) confirm.value = '';
-  if (err) err.textContent = '';
+function getUserStorageKey(sub) {
+  return `${USER_WORKSPACES_PREFIX}${sub}`;
 }
 
-function setupAuthScreen() {
-  const hasPassword = !!getStoredAuth();
-  authMode = hasPassword ? 'login' : 'setup';
+function getWorkspaceAccessKey(workspaceId) {
+  return `${WORKSPACE_ACCESS_PREFIX}${workspaceId}`;
+}
 
+function getStoredUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem(AUTH_USER_KEY) || localStorage.getItem(AUTH_USER_KEY) || 'null');
+  } catch (e) {
+    return null;
+  }
+}
+
+function setStoredUser(user) {
+  sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+}
+
+function getUserWorkspaces(sub) {
+  try {
+    return JSON.parse(localStorage.getItem(getUserStorageKey(sub)) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function setUserWorkspaces(sub, workspaces) {
+  localStorage.setItem(getUserStorageKey(sub), JSON.stringify(workspaces));
+}
+
+function getWorkspaceAccess(workspaceId) {
+  try {
+    return JSON.parse(localStorage.getItem(getWorkspaceAccessKey(workspaceId)) || 'null');
+  } catch (e) {
+    return null;
+  }
+}
+
+function setWorkspaceAccess(workspaceId, access) {
+  localStorage.setItem(getWorkspaceAccessKey(workspaceId), JSON.stringify(access));
+}
+
+function parseJwtCredential(credential) {
+  try {
+    const payload = credential.split('.')[1];
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(normalized));
+  } catch (e) {
+    return null;
+  }
+}
+
+function getOrCreatePersonalWorkspace(user) {
+  const personalWorkspaceId = `personal_${user.sub}`;
+  let workspaces = getUserWorkspaces(user.sub);
+  if (!workspaces.some(w => w.id === personalWorkspaceId)) {
+    workspaces.unshift({
+      id: personalWorkspaceId,
+      label: `Mis finanzas (${user.name || user.email})`,
+      ownerSub: user.sub,
+      ownerEmail: user.email
+    });
+    setUserWorkspaces(user.sub, workspaces);
+  }
+
+  const access = getWorkspaceAccess(personalWorkspaceId);
+  if (!access) {
+    setWorkspaceAccess(personalWorkspaceId, {
+      workspaceId: personalWorkspaceId,
+      ownerSub: user.sub,
+      ownerEmail: user.email,
+      ownerName: user.name || user.email,
+      invited: [],
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  return personalWorkspaceId;
+}
+
+function renderAuthHeader(user) {
   const title = document.getElementById('auth-title');
   const subtitle = document.getElementById('auth-subtitle');
-  const confirmGroup = document.getElementById('auth-confirm-group');
-  const submitBtn = document.getElementById('auth-submit-btn');
+  const error = document.getElementById('auth-error');
   const help = document.getElementById('auth-help-text');
 
-  if (authMode === 'setup') {
-    title.textContent = '🛡️ Configurá cifrado fuerte';
-    subtitle.textContent = 'Definí una contraseña. Tus datos se guardarán cifrados (AES-GCM + PBKDF2).';
-    confirmGroup.style.display = 'block';
-    submitBtn.textContent = 'Activar cifrado';
-    help.textContent = 'Sin esta contraseña no se pueden leer los datos guardados en el navegador.';
-  } else {
-    title.textContent = '🔐 Desbloquear datos cifrados';
-    subtitle.textContent = 'Ingresá tu contraseña para descifrar y abrir tu panel.';
-    confirmGroup.style.display = 'none';
-    submitBtn.textContent = 'Desbloquear';
-    help.textContent = 'Esta sesión solo se mantiene en esta pestaña. Al bloquear o cerrar, vuelve a pedir contraseña.';
+  if (!user) {
+    title.textContent = '🔐 Ingresá con Google';
+    subtitle.textContent = 'Para usar la app necesitás iniciar sesión con Google.';
+    if (GOOGLE_CLIENT_ID === 'REEMPLAZAR_CON_GOOGLE_CLIENT_ID') {
+      error.textContent = 'Falta configurar GOOGLE_CLIENT_ID en index.html.';
+    } else {
+      error.textContent = '';
+    }
+    help.textContent = 'Cada cuenta accede a su propio espacio. Además podés sumarte a espacios colaborativos por invitación.';
+    return;
   }
 
-  clearAuthFields();
+  title.textContent = `✅ Sesión activa: ${user.name || user.email}`;
+  subtitle.textContent = 'Podés continuar al panel o cambiar de cuenta.';
+  error.textContent = '';
+  help.textContent = 'Cerrá sesión cuando uses una computadora compartida.';
 }
 
-function b64FromBytes(bytes) {
-  let binary = '';
-  bytes.forEach(b => { binary += String.fromCharCode(b); });
-  return btoa(binary);
+function renderGoogleButton() {
+  const host = document.getElementById('google-login-btn');
+  if (!host) return;
+  host.innerHTML = '';
+
+  if (!window.google?.accounts?.id) {
+    document.getElementById('auth-error').textContent = 'No se pudo cargar Google Identity Services.';
+    return;
+  }
+  if (GOOGLE_CLIENT_ID === 'REEMPLAZAR_CON_GOOGLE_CLIENT_ID') {
+    return;
+  }
+
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: onGoogleCredential
+  });
+
+  window.google.accounts.id.renderButton(host, {
+    theme: 'outline',
+    size: 'large',
+    width: 320,
+    text: 'signin_with'
+  });
 }
 
-function bytesFromB64(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
+function onGoogleCredential(response) {
+  const claims = parseJwtCredential(response.credential);
+  if (!claims?.sub || !claims?.email) {
+    document.getElementById('auth-error').textContent = 'No se pudo validar el usuario de Google.';
+    return;
+  }
 
-function randomBytes(length) {
-  const out = new Uint8Array(length);
-  crypto.getRandomValues(out);
-  return out;
-}
-
-async function deriveKey(password, saltB64, iterations = PBKDF2_ITERATIONS) {
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: bytesFromB64(saltB64),
-      iterations,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
-}
-
-async function encryptText(plainText, key) {
-  const iv = randomBytes(12);
-  const cipher = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    new TextEncoder().encode(plainText)
-  );
-  return {
-    iv: b64FromBytes(iv),
-    data: b64FromBytes(new Uint8Array(cipher))
+  currentAuthUser = {
+    sub: claims.sub,
+    email: claims.email,
+    name: claims.name || claims.email
   };
+  setStoredUser(currentAuthUser);
+  sessionStorage.setItem(AUTH_SESSION_KEY, 'ok');
+
+  const personalWorkspace = getOrCreatePersonalWorkspace(currentAuthUser);
+  const rememberedWorkspace = sessionStorage.getItem('finanzas_active_workspace_v1');
+  activeWorkspaceId = rememberedWorkspace || personalWorkspace;
+  sessionStorage.setItem('finanzas_active_workspace_v1', activeWorkspaceId);
+
+  renderAuthHeader(currentAuthUser);
+  unlockAndInitApp();
 }
 
-async function decryptText(payload, key) {
-  const plainBuffer = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: bytesFromB64(payload.iv) },
-    key,
-    bytesFromB64(payload.data)
-  );
-  return new TextDecoder().decode(plainBuffer);
+function getActiveDataStorageKey() {
+  if (!activeWorkspaceId) return 'finanzasFamiliares_v6::public';
+  return `finanzasFamiliares_v6::${activeWorkspaceId}`;
 }
 
-async function encryptAndStoreAppState(dataObj) {
-  if (!activeCryptoKey) return;
-  const payload = await encryptText(JSON.stringify(dataObj), activeCryptoKey);
-  localStorage.setItem(APP_KEY_ENCRYPTED, JSON.stringify(payload));
+function isWorkspaceOwner() {
+  const access = getWorkspaceAccess(activeWorkspaceId);
+  return !!(currentAuthUser && access && access.ownerSub === currentAuthUser.sub);
 }
 
-async function decryptAppState() {
-  if (!activeCryptoKey) return null;
-  const raw = localStorage.getItem(APP_KEY_ENCRYPTED);
-  if (!raw) return null;
-  const payload = JSON.parse(raw);
-  const plain = await decryptText(payload, activeCryptoKey);
-  return JSON.parse(plain);
+function updateWorkspaceSelector() {
+  const selector = document.getElementById('workspace-selector');
+  if (!selector || !currentAuthUser) return;
+  const workspaces = getUserWorkspaces(currentAuthUser.sub);
+  selector.innerHTML = '';
+  workspaces.forEach(w => {
+    const opt = document.createElement('option');
+    opt.value = w.id;
+    opt.textContent = w.label;
+    selector.appendChild(opt);
+  });
+  if (activeWorkspaceId) selector.value = activeWorkspaceId;
 }
 
-async function migrateLegacyStateIfNeeded() {
-  const encryptedExists = !!localStorage.getItem(APP_KEY_ENCRYPTED);
-  const legacyRaw = localStorage.getItem(APP_KEY_LEGACY);
-  if (encryptedExists || !legacyRaw) return;
+async function switchWorkspace(workspaceId) {
+  if (!workspaceId || workspaceId === activeWorkspaceId) return;
+  activeWorkspaceId = workspaceId;
+  sessionStorage.setItem('finanzas_active_workspace_v1', workspaceId);
+  await loadState();
+  initApp();
+  renderCollaborationInfo();
+  toast('Espacio colaborativo actualizado', 'success');
+}
 
+function buildInviteCode(workspaceId) {
+  const access = getWorkspaceAccess(workspaceId);
+  if (!access) return '';
+  const payload = {
+    v: INVITE_VERSION,
+    workspaceId,
+    ownerEmail: access.ownerEmail,
+    ownerName: access.ownerName,
+    createdAt: new Date().toISOString()
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+
+function parseInviteCode(code) {
   try {
-    const legacyState = JSON.parse(legacyRaw);
-    await encryptAndStoreAppState(legacyState);
-    localStorage.removeItem(APP_KEY_LEGACY);
+    const decoded = decodeURIComponent(escape(atob(code.trim())));
+    const payload = JSON.parse(decoded);
+    if (!payload?.workspaceId || payload?.v !== INVITE_VERSION) return null;
+    return payload;
   } catch (e) {
-    console.warn('No se pudo migrar estado legacy:', e);
+    return null;
   }
 }
 
-async function submitAuth() {
-  const password = (document.getElementById('auth-password').value || '').trim();
-  const confirm = (document.getElementById('auth-confirm').value || '').trim();
-  const error = document.getElementById('auth-error');
+function renderCollaborationInfo() {
+  const userEmail = document.getElementById('collab-current-user');
+  const workspaceMeta = document.getElementById('collab-workspace-meta');
+  const inviteBtn = document.getElementById('btn-generate-invite');
 
-  if (password.length < 10) {
-    error.textContent = 'Usá al menos 10 caracteres para mayor seguridad.';
+  if (userEmail) userEmail.textContent = currentAuthUser?.email || '-';
+  if (!workspaceMeta) return;
+
+  const access = getWorkspaceAccess(activeWorkspaceId);
+  if (!access) {
+    workspaceMeta.textContent = 'Sin información de espacio.';
+    if (inviteBtn) inviteBtn.disabled = true;
     return;
   }
 
-  if (authMode === 'setup') {
-    if (password !== confirm) {
-      error.textContent = 'Las contraseñas no coinciden.';
-      return;
-    }
+  const invitedCount = Array.isArray(access.invited) ? access.invited.length : 0;
+  workspaceMeta.textContent = `Owner: ${access.ownerEmail} · colaboradores: ${invitedCount}`;
+  if (inviteBtn) inviteBtn.disabled = !isWorkspaceOwner();
+}
 
-    const salt = b64FromBytes(randomBytes(16));
-    const key = await deriveKey(password, salt, PBKDF2_ITERATIONS);
-    const verifier = await encryptText('finanzas-unlock-ok', key);
+function generateInviteCode() {
+  if (!isWorkspaceOwner()) {
+    toast('Solo el owner puede generar invitaciones.', 'error');
+    return;
+  }
+  const targetInput = document.getElementById('collab-invite-code');
+  const code = buildInviteCode(activeWorkspaceId);
+  targetInput.value = code;
+  targetInput.select();
+  toast('Código de invitación generado.', 'success');
+}
 
-    localStorage.setItem(AUTH_KEY, JSON.stringify({
-      salt,
-      iterations: PBKDF2_ITERATIONS,
-      verifier
-    }));
-
-    activeCryptoKey = key;
-    sessionStorage.setItem(AUTH_SESSION_KEY, 'ok');
-    await migrateLegacyStateIfNeeded();
-    await unlockAndInitApp();
-    toast('Cifrado fuerte activado', 'success');
+function joinWorkspaceByInvite() {
+  if (!currentAuthUser) return;
+  const rawCode = (document.getElementById('collab-join-code').value || '').trim();
+  const payload = parseInviteCode(rawCode);
+  if (!payload) {
+    toast('Código inválido.', 'error');
     return;
   }
 
-  const stored = getStoredAuth();
-  if (!stored?.salt || !stored?.verifier) {
-    setupAuthScreen();
-    return;
+  const workspaces = getUserWorkspaces(currentAuthUser.sub);
+  if (!workspaces.some(w => w.id === payload.workspaceId)) {
+    workspaces.push({
+      id: payload.workspaceId,
+      label: `Colaboración con ${payload.ownerName || payload.ownerEmail}`,
+      ownerEmail: payload.ownerEmail
+    });
+    setUserWorkspaces(currentAuthUser.sub, workspaces);
   }
 
-  try {
-    const key = await deriveKey(password, stored.salt, stored.iterations || PBKDF2_ITERATIONS);
-    const plainVerifier = await decryptText(stored.verifier, key);
-    if (plainVerifier !== 'finanzas-unlock-ok') {
-      error.textContent = 'Contraseña incorrecta.';
-      return;
-    }
-
-    activeCryptoKey = key;
-    sessionStorage.setItem(AUTH_SESSION_KEY, 'ok');
-    await unlockAndInitApp();
-  } catch (e) {
-    error.textContent = 'Contraseña incorrecta.';
+  const access = getWorkspaceAccess(payload.workspaceId) || {
+    workspaceId: payload.workspaceId,
+    ownerEmail: payload.ownerEmail || 'desconocido',
+    ownerName: payload.ownerName || payload.ownerEmail || 'desconocido',
+    invited: []
+  };
+  access.invited = Array.isArray(access.invited) ? access.invited : [];
+  if (!access.invited.includes(currentAuthUser.email)) {
+    access.invited.push(currentAuthUser.email);
+    setWorkspaceAccess(payload.workspaceId, access);
   }
+
+  updateWorkspaceSelector();
+  switchWorkspace(payload.workspaceId);
 }
 
 function lockApp() {
   sessionStorage.removeItem(AUTH_SESSION_KEY);
-  activeCryptoKey = null;
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  currentAuthUser = null;
+  activeWorkspaceId = null;
   appReady = false;
   setAppLocked(true);
-  setupAuthScreen();
+  renderAuthHeader(null);
+  renderGoogleButton();
+}
+
+function logoutGoogle() {
+  lockApp();
+  toast('Sesión cerrada.', 'info');
 }
 
 async function unlockAndInitApp() {
   setAppLocked(false);
+  updateWorkspaceSelector();
+  renderCollaborationInfo();
   if (!appReady) {
     await loadState();
     appReady = true;
     initApp();
+    return;
   }
+  await loadState();
+  initApp();
+}
+
+function setupAuthScreen() {
+  const stored = getStoredUser();
+  if (stored?.sub && stored?.email) {
+    currentAuthUser = stored;
+  }
+  renderAuthHeader(currentAuthUser);
+  renderGoogleButton();
 }

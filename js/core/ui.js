@@ -124,6 +124,11 @@ document.addEventListener('DOMContentLoaded', function() {
   setAppLocked(true);
   setupAuthScreen();
 
+  const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'ok';
+  if (hasSession && getStoredUser()) {
+    unlockAndInitApp();
+  }
+
   document.getElementById('name-p1').addEventListener('input', function() {
     state.names.p1 = this.value || 'Persona 1';
     updatePersonaLabels();
@@ -174,4 +179,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => saveState());
   });
+
+  const workspaceSelector = document.getElementById('workspace-selector');
+  if (workspaceSelector) {
+    workspaceSelector.addEventListener('change', function() {
+      switchWorkspace(this.value);
+    });
+  }
 });

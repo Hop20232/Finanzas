@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Planificación Financiera Familiar</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  window.GOOGLE_CLIENT_ID = window.GOOGLE_CLIENT_ID || 'REEMPLAZAR_CON_GOOGLE_CLIENT_ID';
+</script>
 <style>
   /* =============================================
      VARIABLES Y RESET
@@ -858,16 +862,8 @@
   <div class="auth-card">
     <h2 id="auth-title">🔐 Acceso protegido</h2>
     <p id="auth-subtitle">Ingresá tu contraseña para abrir tu panel.</p>
-    <div class="form-group">
-      <label for="auth-password">Contraseña</label>
-      <input type="password" id="auth-password" autocomplete="current-password" placeholder="Tu contraseña" />
-    </div>
-    <div class="form-group" id="auth-confirm-group" style="display:none;">
-      <label for="auth-confirm">Confirmar contraseña</label>
-      <input type="password" id="auth-confirm" autocomplete="new-password" placeholder="Repetí la contraseña" />
-    </div>
+    <div id="google-login-btn" style="display:flex;justify-content:center;margin:0.6rem 0 0.5rem;"></div>
     <p class="auth-error" id="auth-error"></p>
-    <button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuth()">Ingresar</button>
     <div class="auth-help" id="auth-help-text">
       Esta barrera protege de accesos casuales en este navegador. Para seguridad real en GitHub Pages, necesitás backend con autenticación.
     </div>
@@ -893,7 +889,9 @@
       <button id="tab-dash" onclick="switchView('dashboard')">📊 Dashboards</button>
     </nav>
     <div class="header-actions">
-      <button id="btn-lock-app" onclick="lockApp()">🔒 Bloquear</button>
+      <select id="workspace-selector" style="max-width:230px;padding:0.38rem 0.5rem;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:white;">
+      </select>
+      <button id="btn-lock-app" onclick="logoutGoogle()">🚪 Cerrar sesión</button>
       <button onclick="exportJSON()">⬇️ Exportar</button>
       <button onclick="document.getElementById('import-file').click()">⬆️ Importar</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)" />
@@ -918,6 +916,36 @@
     </div>
 
     <!-- GRID SUPERIOR: Ingresos + Objetivos -->
+    <div class="card">
+      <div class="card-header">
+        <h3><span class="icon">🤝</span> Colaboración</h3>
+      </div>
+      <div class="card-body grid-2">
+        <div>
+          <div class="form-group">
+            <label>Usuario logueado</label>
+            <div id="collab-current-user" class="text-muted">-</div>
+          </div>
+          <div class="form-group">
+            <label>Espacio activo</label>
+            <div id="collab-workspace-meta" class="text-muted">-</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-generate-invite" onclick="generateInviteCode()">Generar invitación</button>
+          <div class="form-group" style="margin-top:0.5rem;">
+            <label for="collab-invite-code">Código para compartir</label>
+            <textarea id="collab-invite-code" rows="2" readonly placeholder="Generá un código y compartilo con quien quieras invitar"></textarea>
+          </div>
+        </div>
+        <div>
+          <div class="form-group">
+            <label for="collab-join-code">Unirme con invitación</label>
+            <textarea id="collab-join-code" rows="4" placeholder="Pegá el código de invitación"></textarea>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="joinWorkspaceByInvite()">Unirme al espacio</button>
+        </div>
+      </div>
+    </div>
+
     <div class="grid-2">
 
       <!-- INGRESOS -->
