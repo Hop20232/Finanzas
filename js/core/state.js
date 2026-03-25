@@ -3,7 +3,8 @@
    apiUrl arranca con el endpoint de exchangerate-api
    como valor por defecto
 ================================================= */
-const APP_KEY = 'finanzasFamiliares_v4';
+const APP_KEY_LEGACY = 'finanzasFamiliares_v4';
+const APP_KEY_ENCRYPTED = 'finanzasFamiliares_v5_enc';
 
 const DEFAULT_API_URL = 'https://api.exchangerate-api.com/v4/latest/ARS';
 
@@ -28,28 +29,49 @@ let state = {
 /* =================================================
    PERSISTENCIA
 ================================================= */
-function loadState() {
+async function loadState() {
   try {
-    const raw = localStorage.getItem(APP_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
+    let saved = null;
+
+    if (typeof decryptAppState === 'function') {
+      saved = await decryptAppState();
+    }
+
+    // fallback legacy (solo para recuperación, auth.js migra a cifrado)
+    if (!saved) {
+      const legacyRaw = localStorage.getItem(APP_KEY_LEGACY);
+      if (legacyRaw) saved = JSON.parse(legacyRaw);
+    }
+
+    if (saved) {
       if (saved.names) state.names = saved.names;
       if (saved.months) state.months = saved.months;
       if (saved.currencies) state.currencies = { ...state.currencies, ...saved.currencies };
       if (saved.currencySources) state.currencySources = saved.currencySources;
-      // Si el JSON guardado no tiene apiUrl, se mantiene el default
       if (saved.apiUrl) state.apiUrl = saved.apiUrl;
       if (Array.isArray(saved.expenseTypes)) state.expenseTypes = saved.expenseTypes;
       if (Array.isArray(saved.invTypes)) state.invTypes = saved.invTypes;
       if (saved.templates) state.templates = saved.templates;
     }
-  } catch(e) { console.warn('Error cargando estado:', e); }
+  } catch (e) {
+    console.warn('Error cargando estado:', e);
+  }
 }
 
 function saveState() {
+  const snapshot = JSON.parse(JSON.stringify(state));
+
+  if (typeof encryptAndStoreAppState === 'function') {
+    encryptAndStoreAppState(snapshot).catch(e => console.warn('Error guardando estado cifrado:', e));
+    return;
+  }
+
+  // fallback no ideal
   try {
-    localStorage.setItem(APP_KEY, JSON.stringify(state));
-  } catch(e) { console.warn('Error guardando estado:', e); }
+    localStorage.setItem(APP_KEY_LEGACY, JSON.stringify(snapshot));
+  } catch (e) {
+    console.warn('Error guardando estado legacy:', e);
+  }
 }
 
 /* =================================================
