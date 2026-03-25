@@ -796,9 +796,83 @@
     border-radius: var(--radius-sm);
     border: 1px dashed var(--neutral-300);
   }
+
+  /* =============================================
+     LOGIN / ACCESO
+  ============================================= */
+  .app-locked #app-header,
+  .app-locked #app-content {
+    display: none;
+  }
+  #auth-screen {
+    min-height: 100vh;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: radial-gradient(circle at top, #e8effe 0%, #f3f4f6 55%, #e5e7eb 100%);
+  }
+  .app-locked #auth-screen {
+    display: flex;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 460px;
+    background: var(--white);
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius-lg);
+    padding: 1.4rem;
+    box-shadow: var(--shadow-lg);
+  }
+  .auth-card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.35rem;
+  }
+  .auth-card p {
+    color: var(--neutral-600);
+    font-size: 0.9rem;
+    margin-bottom: 0.9rem;
+  }
+  .auth-help {
+    margin-top: 0.85rem;
+    padding: 0.6rem 0.75rem;
+    background: var(--warning-light);
+    color: #7a4f00;
+    border: 1px solid #f7df87;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+  }
+  .auth-error {
+    color: var(--danger);
+    font-size: 0.82rem;
+    min-height: 1.1rem;
+    margin-bottom: 0.55rem;
+  }
+
 </style>
 </head>
 <body>
+
+
+<div id="auth-screen" aria-live="polite">
+  <div class="auth-card">
+    <h2 id="auth-title">🔐 Acceso protegido</h2>
+    <p id="auth-subtitle">Ingresá tu contraseña para abrir tu panel.</p>
+    <div class="form-group">
+      <label for="auth-password">Contraseña</label>
+      <input type="password" id="auth-password" autocomplete="current-password" placeholder="Tu contraseña" />
+    </div>
+    <div class="form-group" id="auth-confirm-group" style="display:none;">
+      <label for="auth-confirm">Confirmar contraseña</label>
+      <input type="password" id="auth-confirm" autocomplete="new-password" placeholder="Repetí la contraseña" />
+    </div>
+    <p class="auth-error" id="auth-error"></p>
+    <button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuth()">Ingresar</button>
+    <div class="auth-help" id="auth-help-text">
+      Esta barrera protege de accesos casuales en este navegador. Para seguridad real en GitHub Pages, necesitás backend con autenticación.
+    </div>
+  </div>
+</div>
 
 <!-- =============================================
      HEADER
@@ -819,6 +893,7 @@
       <button id="tab-dash" onclick="switchView('dashboard')">📊 Dashboards</button>
     </nav>
     <div class="header-actions">
+      <button id="btn-lock-app" onclick="lockApp()">🔒 Bloquear</button>
       <button onclick="exportJSON()">⬇️ Exportar</button>
       <button onclick="document.getElementById('import-file').click()">⬆️ Importar</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)" />
@@ -1145,6 +1220,7 @@
 <script src="js/modules/comparison.js"></script>
 <script src="js/modules/dashboard.js"></script>
 <script src="js/modules/io.js"></script>
+<script src="js/modules/auth.js"></script>
 <script src="js/core/ui.js"></script>
 </body>
 </html>

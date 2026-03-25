@@ -1,3 +1,5 @@
+let appReady = false;
+
 /* =================================================
    NAVEGACIÓN
 ================================================= */
@@ -51,7 +53,7 @@ function toast(msg, type = 'info') {
 /* =================================================
    INICIALIZACIÓN
 ================================================= */
-function initUI() {
+function initApp() {
   // Nombres
   document.getElementById('name-p1').value = state.names.p1 || 'Persona 1';
   document.getElementById('name-p2').value = state.names.p2 || 'Persona 2';
@@ -119,8 +121,8 @@ function updatePersonaLabels() {
    EVENT LISTENERS
 ================================================= */
 document.addEventListener('DOMContentLoaded', function() {
-  loadState();
-  initUI();
+  setAppLocked(true);
+  setupAuthScreen();
 
   document.getElementById('name-p1').addEventListener('input', function() {
     state.names.p1 = this.value || 'Persona 1';
