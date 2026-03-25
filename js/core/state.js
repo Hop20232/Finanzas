@@ -4,7 +4,6 @@
    como valor por defecto
 ================================================= */
 const APP_KEY_LEGACY = 'finanzasFamiliares_v4';
-const APP_KEY_ENCRYPTED = 'finanzasFamiliares_v5_enc';
 
 const DEFAULT_API_URL = 'https://api.exchangerate-api.com/v4/latest/ARS';
 
@@ -31,13 +30,13 @@ let state = {
 ================================================= */
 async function loadState() {
   try {
+    const appScopedKey = (typeof getActiveDataStorageKey === 'function')
+      ? getActiveDataStorageKey()
+      : 'finanzasFamiliares_v6::public';
     let saved = null;
 
-    if (typeof decryptAppState === 'function') {
-      saved = await decryptAppState();
-    }
-
-    // fallback legacy (solo para recuperación, auth.js migra a cifrado)
+    const scopedRaw = localStorage.getItem(appScopedKey);
+    if (scopedRaw) saved = JSON.parse(scopedRaw);
     if (!saved) {
       const legacyRaw = localStorage.getItem(APP_KEY_LEGACY);
       if (legacyRaw) saved = JSON.parse(legacyRaw);
@@ -60,17 +59,13 @@ async function loadState() {
 
 function saveState() {
   const snapshot = JSON.parse(JSON.stringify(state));
-
-  if (typeof encryptAndStoreAppState === 'function') {
-    encryptAndStoreAppState(snapshot).catch(e => console.warn('Error guardando estado cifrado:', e));
-    return;
-  }
-
-  // fallback no ideal
+  const appScopedKey = (typeof getActiveDataStorageKey === 'function')
+    ? getActiveDataStorageKey()
+    : 'finanzasFamiliares_v6::public';
   try {
-    localStorage.setItem(APP_KEY_LEGACY, JSON.stringify(snapshot));
+    localStorage.setItem(appScopedKey, JSON.stringify(snapshot));
   } catch (e) {
-    console.warn('Error guardando estado legacy:', e);
+    console.warn('Error guardando estado:', e);
   }
 }
 
@@ -157,4 +152,3 @@ function deleteCurrentMonth() {
   refreshDashboards();
   toast('Mes eliminado', 'info');
 }
-
