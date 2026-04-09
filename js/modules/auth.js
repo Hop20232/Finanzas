@@ -306,8 +306,13 @@ function lockApp() {
 }
 
 function logoutGoogle() {
-  lockApp();
-  toast('Sesión cerrada.', 'info');
+  sessionStorage.removeItem(AUTH_SESSION_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+  currentAuthUser = null;
+  activeWorkspaceId = null;
+  unlockAndInitApp();
+  toast('Acceso libre activo (login deshabilitado).', 'info');
 }
 
 async function unlockAndInitApp() {
