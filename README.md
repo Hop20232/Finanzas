@@ -11,6 +11,8 @@ Aplicacion web local para planificar ingresos, gastos, metas e inversiones mensu
    - Publish directory: `.`
 4. Publica el sitio. La configuracion equivalente queda versionada en `netlify.toml`.
 
+Netlify ejecutara automaticamente `npm run build`, publicara la raiz del repositorio y usara Node 18.
+
 La primera entrega guarda los datos localmente en el navegador y funciona como modo de prueba local. No debe interpretarse como autenticacion real ni como colaboracion entre cuentas: OAuth, Google Sheets, invitaciones verificables y sincronizacion quedan fuera de esta publicacion y documentadas en `docs/PRODUCT_BACKLOG_PWA.md`.
 
 ## Desarrollo local

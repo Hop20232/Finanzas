@@ -7,6 +7,7 @@ const requiredFiles = [
   'netlify.toml',
   'manifest.webmanifest',
   'sw.js',
+  'icons/icon.svg',
   'js/core/state.js',
   'js/core/ui.js',
 ];
