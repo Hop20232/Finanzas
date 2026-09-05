@@ -6,8 +6,15 @@ let appReady = false;
 function switchView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.main-nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-' + view).classList.add('active');
-  document.getElementById('tab-' + view).classList.add('active');
+  const viewElement = document.getElementById('view-' + view);
+  const tabElement = document.getElementById('tab-' + view) || (view === 'dashboard' ? document.getElementById('tab-dash') : null);
+  if (!viewElement || !tabElement) {
+    console.warn('Vista no disponible:', view);
+    toast('La vista solicitada no está disponible.', 'error');
+    return;
+  }
+  viewElement.classList.add('active');
+  tabElement.classList.add('active');
   if (view === 'dashboard') {
     const activeTab = document.querySelector('.dash-tab.active');
     if (activeTab) {
