@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finanzas-public-v1';
+const CACHE_NAME = 'finanzas-public-v2';
 const PUBLIC_ASSETS = [
   '/',
   '/index.html',
