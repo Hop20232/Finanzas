@@ -50,6 +50,22 @@ async function loadState() {
     if (Array.isArray(saved.expenseTypes)) state.expenseTypes = saved.expenseTypes;
     if (Array.isArray(saved.invTypes)) state.invTypes = saved.invTypes;
     if (saved.templates && typeof saved.templates === 'object') state.templates = saved.templates;
+
+    if (typeof loadGoogleDriveWorkspaceState === 'function' && typeof activeWorkspaceId === 'string' && activeWorkspaceId) {
+      const remote = await loadGoogleDriveWorkspaceState(activeWorkspaceId);
+      if (remote && typeof remote === 'object') {
+        if (remote.names && typeof remote.names === 'object') state.names = remote.names;
+        if (typeof remote.currentMonth === 'string') state.currentMonth = remote.currentMonth;
+        if (remote.months && typeof remote.months === 'object' && !Array.isArray(remote.months)) state.months = remote.months;
+        if (remote.currencies && typeof remote.currencies === 'object' && !Array.isArray(remote.currencies)) state.currencies = { ...state.currencies, ...remote.currencies };
+        if (remote.currencySources && typeof remote.currencySources === 'object') state.currencySources = remote.currencySources;
+        if (typeof remote.apiUrl === 'string') state.apiUrl = remote.apiUrl;
+        if (Array.isArray(remote.expenseTypes)) state.expenseTypes = remote.expenseTypes;
+        if (Array.isArray(remote.invTypes)) state.invTypes = remote.invTypes;
+        if (remote.templates && typeof remote.templates === 'object') state.templates = remote.templates;
+      }
+    }
+
     return true;
   } catch (e) {
     console.warn('Error cargando estado:', e);
@@ -58,13 +74,32 @@ async function loadState() {
   }
 }
 
-function saveState() {
+async function saveState() {
   const snapshot = JSON.parse(JSON.stringify(state));
   const appScopedKey = (typeof getActiveDataStorageKey === 'function')
     ? getActiveDataStorageKey()
     : 'finanzasFamiliares_v6::public';
   try {
     localStorage.setItem(appScopedKey, JSON.stringify(snapshot));
+    if (typeof saveGoogleDriveWorkspaceState === 'function' && typeof activeWorkspaceId === 'string' && activeWorkspaceId) {
+      try {
+        await saveGoogleDriveWorkspaceState(activeWorkspaceId, snapshot);
+        if (typeof currentAuthUser === 'object' && currentAuthUser && typeof setUserWorkspaces === 'function' && typeof setWorkspaceAccess === 'function' && typeof getUserWorkspaces === 'function') {
+          const registry = {
+            version: 1,
+            updatedAt: new Date().toISOString(),
+            userSub: currentAuthUser.sub,
+            userEmail: currentAuthUser.email,
+            userWorkspaces: {
+              [currentAuthUser.sub]: getUserWorkspaces(currentAuthUser.sub)
+            }
+          };
+          await saveGoogleDriveRegistry(registry);
+        }
+      } catch (remoteError) {
+        console.warn('Error guardando en Google Drive:', remoteError);
+      }
+    }
     return true;
   } catch (e) {
     console.warn('Error guardando estado:', e);
@@ -129,7 +164,7 @@ function saveMonth() {
   if (invType && !state.invTypes.includes(invType)) {
     state.invTypes.push(invType);
   }
-  if (!saveState()) return;
+  saveState();
   toast('Mes guardado ✔', 'success');
   updateCompareSelectors();
   refreshDashboards();
@@ -152,10 +187,9 @@ function deleteCurrentMonth() {
   if (!confirm(`¿Eliminar los datos de ${m}?`)) return;
   const deleted = state.months[m];
   delete state.months[m];
-  if (!saveState()) {
+  saveState().catch(() => {
     state.months[m] = deleted;
-    return;
-  }
+  });
   updateCompareSelectors();
   refreshDashboards();
   toast('Mes eliminado', 'info');
