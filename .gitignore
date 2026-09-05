@@ -1,6 +1,7 @@
 # Dependencias y salida de compilación
 node_modules/
 dist/
+google-config.js
 
 # Variables privadas y secretos locales
 .env

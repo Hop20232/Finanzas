@@ -128,7 +128,7 @@ function updatePersonaLabels() {
    EVENT LISTENERS
 ================================================= */
 document.addEventListener('DOMContentLoaded', function() {
-  unlockAndInitApp();
+  setupAuthScreen();
 
   document.getElementById('name-p1').addEventListener('input', function() {
     state.names.p1 = this.value || 'Persona 1';

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
+const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const requiredFiles = [
   'index.html',
   'netlify.toml',
@@ -39,6 +40,16 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 if (!html.includes('manifest.webmanifest') || !html.includes('serviceWorker.register')) {
   console.error('index.html no referencia el manifest y el service worker requeridos.');
   process.exit(1);
+}
+
+fs.writeFileSync(
+  path.join(root, 'google-config.js'),
+  `window.GOOGLE_CLIENT_ID = ${JSON.stringify(googleClientId)};\n`,
+  'utf8'
+);
+
+if (!googleClientId) {
+  console.warn('GOOGLE_CLIENT_ID no definido: el deploy quedara sin boton de inicio de sesion.');
 }
 
 console.log('Build estatico verificado: Netlify puede publicar la raiz del repositorio.');

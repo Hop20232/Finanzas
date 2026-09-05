@@ -306,13 +306,20 @@ function lockApp() {
 }
 
 function logoutGoogle() {
+  const email = currentAuthUser?.email;
+  if (window.google?.accounts?.id) {
+    window.google.accounts.id.disableAutoSelect();
+    if (email && typeof window.google.accounts.id.revoke === 'function') {
+      window.google.accounts.id.revoke(email, () => {});
+    }
+  }
   sessionStorage.removeItem(AUTH_SESSION_KEY);
   sessionStorage.removeItem(AUTH_USER_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
   currentAuthUser = null;
   activeWorkspaceId = null;
-  unlockAndInitApp();
-  toast('Acceso libre activo (login deshabilitado).', 'info');
+  lockApp();
+  toast('Sesión cerrada. Volvé a iniciar con Google.', 'info');
 }
 
 async function unlockAndInitApp() {
@@ -333,7 +340,16 @@ function setupAuthScreen() {
   const stored = getStoredUser();
   if (stored?.sub && stored?.email) {
     currentAuthUser = stored;
+    const personalWorkspace = getOrCreatePersonalWorkspace(currentAuthUser);
+    activeWorkspaceId = sessionStorage.getItem('finanzas_active_workspace_v1') || personalWorkspace;
+    sessionStorage.setItem('finanzas_active_workspace_v1', activeWorkspaceId);
+    renderAuthHeader(currentAuthUser);
+    unlockAndInitApp();
+    return;
   }
+  lockApp();
   renderAuthHeader(currentAuthUser);
   renderGoogleButton();
 }
+
+window.addEventListener('google-identity-loaded', renderGoogleButton);
