@@ -7,53 +7,54 @@ const APP_KEY_LEGACY = 'finanzasFamiliares_v4';
 
 const DEFAULT_API_URL = 'https://api.exchangerate-api.com/v4/latest/ARS';
 
-let state = {
-  names: { p1: 'Persona 1', p2: 'Persona 2' },
-  currentMonth: '',
-  months: {},
-  currencies: {
-    USD: 1050,
-    EUR: 1150,
-    BRL: 200,
-    UYU: 26,
-    CLP: 1.1
-  },
-  currencySources: {},
-  apiUrl: DEFAULT_API_URL,   // ← default precargado
-  expenseTypes: [],
-  invTypes: [],
-  templates: {},
-};
+function createDefaultState() {
+  return {
+    names: { p1: 'Persona 1', p2: 'Persona 2' },
+    currentMonth: '',
+    months: {},
+    currencies: { USD: 1050, EUR: 1150, BRL: 200, UYU: 26, CLP: 1.1 },
+    currencySources: {},
+    apiUrl: DEFAULT_API_URL,
+    expenseTypes: [],
+    invTypes: [],
+    templates: {},
+  };
+}
+
+let state = createDefaultState();
 
 /* =================================================
    PERSISTENCIA
 ================================================= */
 async function loadState() {
+  const appScopedKey = (typeof getActiveDataStorageKey === 'function')
+    ? getActiveDataStorageKey()
+    : 'finanzasFamiliares_v6::public';
+
+  // Nunca se mezcla el estado previo con otro espacio.
+  state = createDefaultState();
+
   try {
-    const appScopedKey = (typeof getActiveDataStorageKey === 'function')
-      ? getActiveDataStorageKey()
-      : 'finanzasFamiliares_v6::public';
-    let saved = null;
-
     const scopedRaw = localStorage.getItem(appScopedKey);
-    if (scopedRaw) saved = JSON.parse(scopedRaw);
-    if (!saved) {
-      const legacyRaw = localStorage.getItem(APP_KEY_LEGACY);
-      if (legacyRaw) saved = JSON.parse(legacyRaw);
+    if (!scopedRaw) return true;
+    const saved = JSON.parse(scopedRaw);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+      throw new Error('El estado guardado no tiene un formato válido.');
     }
-
-    if (saved) {
-      if (saved.names) state.names = saved.names;
-      if (saved.months) state.months = saved.months;
-      if (saved.currencies) state.currencies = { ...state.currencies, ...saved.currencies };
-      if (saved.currencySources) state.currencySources = saved.currencySources;
-      if (saved.apiUrl) state.apiUrl = saved.apiUrl;
-      if (Array.isArray(saved.expenseTypes)) state.expenseTypes = saved.expenseTypes;
-      if (Array.isArray(saved.invTypes)) state.invTypes = saved.invTypes;
-      if (saved.templates) state.templates = saved.templates;
-    }
+    if (saved.names && typeof saved.names === 'object') state.names = saved.names;
+    if (typeof saved.currentMonth === 'string') state.currentMonth = saved.currentMonth;
+    if (saved.months && typeof saved.months === 'object' && !Array.isArray(saved.months)) state.months = saved.months;
+    if (saved.currencies && typeof saved.currencies === 'object' && !Array.isArray(saved.currencies)) state.currencies = { ...state.currencies, ...saved.currencies };
+    if (saved.currencySources && typeof saved.currencySources === 'object') state.currencySources = saved.currencySources;
+    if (typeof saved.apiUrl === 'string') state.apiUrl = saved.apiUrl;
+    if (Array.isArray(saved.expenseTypes)) state.expenseTypes = saved.expenseTypes;
+    if (Array.isArray(saved.invTypes)) state.invTypes = saved.invTypes;
+    if (saved.templates && typeof saved.templates === 'object') state.templates = saved.templates;
+    return true;
   } catch (e) {
     console.warn('Error cargando estado:', e);
+    toast('No se pudo cargar este espacio. Se abrió un estado vacío.', 'error');
+    return false;
   }
 }
 
@@ -64,8 +65,11 @@ function saveState() {
     : 'finanzasFamiliares_v6::public';
   try {
     localStorage.setItem(appScopedKey, JSON.stringify(snapshot));
+    return true;
   } catch (e) {
     console.warn('Error guardando estado:', e);
+    toast('No se pudieron guardar los cambios. Verificá el almacenamiento del navegador.', 'error');
+    return false;
   }
 }
 
@@ -125,7 +129,7 @@ function saveMonth() {
   if (invType && !state.invTypes.includes(invType)) {
     state.invTypes.push(invType);
   }
-  saveState();
+  if (!saveState()) return;
   toast('Mes guardado ✔', 'success');
   updateCompareSelectors();
   refreshDashboards();
@@ -146,8 +150,12 @@ function deleteCurrentMonth() {
   if (!m) return;
   if (!state.months[m]) { toast('No hay datos guardados para ese mes', 'info'); return; }
   if (!confirm(`¿Eliminar los datos de ${m}?`)) return;
+  const deleted = state.months[m];
   delete state.months[m];
-  saveState();
+  if (!saveState()) {
+    state.months[m] = deleted;
+    return;
+  }
   updateCompareSelectors();
   refreshDashboards();
   toast('Mes eliminado', 'info');
