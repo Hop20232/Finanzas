@@ -1,5 +1,7 @@
 # Backlog de la primera entrega
 
+Este backlog describe la primera entrega local. El backlog maestro de producto y colaboracion esta en [PRODUCT_BACKLOG_PWA.md](PRODUCT_BACKLOG_PWA.md).
+
 ## P0 — Fundaciones y correcciones críticas
 
 | ID | Historia | Criterio de aceptación |
