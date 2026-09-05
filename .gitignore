@@ -1,0 +1,12 @@
+# Dependencias y salida de compilación
+node_modules/
+dist/
+
+# Variables privadas y secretos locales
+.env
+.env.*
+!.env.example
+
+# Artefactos de pruebas y sistema
+coverage/
+.DS_Store
